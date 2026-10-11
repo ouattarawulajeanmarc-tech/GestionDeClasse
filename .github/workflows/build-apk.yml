@@ -23,28 +23,32 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Installer Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Extraire le projet Android
         run: |
           mkdir -p extracted
-          ZIP_FILE=$(find . -maxdepth 1 -name '*.zip' -print -quit)
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name '*.zip' -print -quit)
           if [ -z "$ZIP_FILE" ]; then
             echo "Aucun fichier ZIP trouve"
             exit 1
           fi
           unzip -q "$ZIP_FILE" -d extracted
-          WRAPPER=$(find extracted -type f -name gradlew -print -quit)
-          if [ -z "$WRAPPER" ]; then
-            echo "Le projet ne contient pas gradlew"
-            find extracted -maxdepth 4 -type f | head -100
+          SETTINGS=$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+          if [ -z "$SETTINGS" ]; then
+            echo "Fichier settings.gradle introuvable"
+            find extracted -maxdepth 5 -type f | head -100
             exit 1
           fi
-          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
+          echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
 
       - name: Compiler APK debug
         run: |
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug
 
       - name: Publier le fichier APK
         uses: actions/upload-artifact@v4
@@ -52,4 +56,3 @@ jobs:
           name: GestionDeClasse-APK
           path: '**/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
-          
